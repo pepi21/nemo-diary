@@ -155,13 +155,15 @@ app.get('/api/pulse', async (req, res) => {
     const buckets = [];
     const lines = text.split('\n');
     for (const line of lines) {
-      // Match pinned buckets: 📌 记忆桶: name [bucket_id:xxx]
-      // Match dynamic buckets: 🫧 记忆桶: name [bucket_id:xxx]
-      const match = line.match(/([📌🫧])\s*记忆桶:\s*(.+?)\s*\[bucket_id:(\w+)\]/);
+      // Match all bucket types: 📌 pinned, 💭 dynamic, 🫧 feel
+      const match = line.match(/(📌|💭|🫧)\s*\[?(.+?)\]?\s*bucket_id:(\w+)/);
       if (match) {
+        const icon = match[1];
+        let title = match[2].replace(/记忆桶:\s*/, '').replace(/\s*\[?$/, '').trim();
         const bucket = {
-          pinned: match[1] === '📌',
-          title: match[2],
+          pinned: icon === '📌',
+          feel: icon === '🫧',
+          title: title,
           id: match[3]
         };
         // Extract emotion
@@ -171,14 +173,9 @@ app.get('/api/pulse', async (req, res) => {
           bucket.arousal = parseFloat(emo[2]);
         }
         // Extract tags
-        const tags = line.match(/标签:([^\]]+)/);
+        const tags = line.match(/标签:(.+)/);
         if (tags) {
-          bucket.tags = tags[1].split(',').map(t => t.trim());
-        }
-        // Extract date
-        const dateMatch = line.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-        if (dateMatch) {
-          bucket.date = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+          bucket.tags = tags[1].split(',').map(t => t.trim()).filter(t => t);
         }
         buckets.push(bucket);
       }
@@ -259,10 +256,15 @@ function parseEntries(result) {
       entry.tags = tagsMatch[1].split(',').map(t => t.trim());
     }
 
-    // Extract date from tags or content
-    const dateMatch = bucket.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-    if (dateMatch) {
-      entry.date = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+    // Extract date from tags only (not from content)
+    if (entry.tags) {
+      for (const tag of entry.tags) {
+        const tagDateMatch = tag.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (tagDateMatch) {
+          entry.date = `${tagDateMatch[1]}-${tagDateMatch[2].padStart(2, '0')}-${tagDateMatch[3].padStart(2, '0')}`;
+          break;
+        }
+      }
     }
 
     // Check if this is a diary entry
