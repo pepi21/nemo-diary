@@ -556,6 +556,7 @@
 
     .bucket-item.pinned { border-left: 3px solid var(--accent-ochre); }
     .bucket-item.dynamic { border-left: 3px solid var(--accent-tide); }
+    .bucket-item.feel { border-left: 3px solid var(--accent-lavender); }
 
     .bucket-header {
       display: flex;
@@ -572,6 +573,7 @@
     }
 
     .bucket-item.dynamic .bucket-name { color: var(--accent-tide); }
+    .bucket-item.feel .bucket-name { color: var(--accent-lavender); }
 
     .bucket-arrow {
       font-size: 0.7rem;
@@ -922,31 +924,39 @@
       }
 
       const pinned = pulseBuckets.filter(b => b.pinned);
-      const dynamic = pulseBuckets.filter(b => !b.pinned);
+      const dynamic = pulseBuckets.filter(b => !b.pinned && !b.feel);
+      const feel = pulseBuckets.filter(b => b.feel);
 
       let html = '';
 
       if (pinned.length > 0) {
-        html += `<div class="pulse-section-label">📌 pinned — ${pinned.length} memories</div>`;
+        html += `<div class="pulse-section-label">📌 核心記憶 — ${pinned.length} 個</div>`;
         for (const b of pinned) {
-          html += renderBucketItem(b, true);
+          html += renderBucketItem(b, 'pinned');
         }
       }
 
       if (dynamic.length > 0) {
-        html += `<div class="pulse-section-label">🫧 dynamic — ${dynamic.length} memories</div>`;
+        html += `<div class="pulse-section-label">💭 動態記憶 — ${dynamic.length} 個</div>`;
         for (const b of dynamic) {
-          html += renderBucketItem(b, false);
+          html += renderBucketItem(b, 'dynamic');
+        }
+      }
+
+      if (feel.length > 0) {
+        html += `<div class="pulse-section-label">🫧 感受 — ${feel.length} 個</div>`;
+        for (const b of feel) {
+          html += renderBucketItem(b, 'feel');
         }
       }
 
       panel.innerHTML = html;
     }
 
-    function renderBucketItem(b, isPinned) {
+    function renderBucketItem(b, type) {
       const ec = getEC(b.valence);
       const tagsLine = b.tags ? b.tags.slice(0, 4).join(', ') : '';
-      return `<div class="bucket-item ${isPinned ? 'pinned' : 'dynamic'}" id="bucket-${b.id}" onclick="toggleBucket('${b.id}')">
+      return `<div class="bucket-item ${type}" id="bucket-${b.id}" onclick="toggleBucket('${b.id}')">
         <div class="bucket-header">
           <span class="entry-emotion-mark" style="color:${ec};background:${ec}"></span>
           <span class="bucket-name">${b.title || '無題'}</span>
