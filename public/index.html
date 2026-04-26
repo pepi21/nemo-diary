@@ -541,6 +541,79 @@
       pointer-events: none;
       z-index: 3;
     }
+
+    .bucket-item {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.25s;
+      animation: paintIn 0.3s ease;
+    }
+
+    .bucket-item:hover { background: var(--bg-card-hover); }
+
+    .bucket-item.pinned { border-left: 3px solid var(--accent-ochre); }
+    .bucket-item.dynamic { border-left: 3px solid var(--accent-tide); }
+
+    .bucket-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .bucket-icon { font-size: 0.75rem; }
+
+    .bucket-name {
+      font-size: 0.85rem;
+      color: var(--accent-ochre);
+      flex: 1;
+    }
+
+    .bucket-item.dynamic .bucket-name { color: var(--accent-tide); }
+
+    .bucket-arrow {
+      font-size: 0.7rem;
+      color: var(--text-faded);
+      transition: transform 0.2s;
+    }
+
+    .bucket-item.expanded .bucket-arrow { transform: rotate(90deg); }
+
+    .bucket-detail {
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--border-sea);
+      font-size: 0.8rem;
+      line-height: 1.8;
+      color: var(--text-cream);
+      opacity: 0.85;
+      display: none;
+    }
+
+    .bucket-item.expanded .bucket-detail { display: block; }
+
+    .bucket-detail .detail-loading {
+      color: var(--text-faded);
+      font-style: italic;
+      font-size: 0.75rem;
+    }
+
+    .bucket-tags-line {
+      margin-top: 0.3rem;
+      font-size: 0.6rem;
+      color: var(--text-faded);
+    }
+
+    .pulse-section-label {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.72rem;
+      color: var(--text-faded);
+      padding: 0.8rem 0 0.4rem;
+      letter-spacing: 0.05em;
+    }
   </style>
 </head>
 <body>
@@ -671,6 +744,7 @@
     <div class="mode-toggle">
       <button class="mode-btn active" data-mode="diary" onclick="setMode('diary')">日記</button>
       <button class="mode-btn" data-mode="all" onclick="setMode('all')">全部記憶</button>
+      <button class="mode-btn" data-mode="pulse" onclick="setMode('pulse')">完整列表</button>
     </div>
 
     <div id="calendarSection">
@@ -702,6 +776,7 @@
     let currentMonth = 3;
     let selectedDate = null;
     let searchTimeout = null;
+    let pulseBuckets = [];
 
     async function init() {
       const now = new Date();
@@ -714,6 +789,10 @@
     async function fetchEntries() {
       showLoading(true);
       try {
+        if (currentMode === 'pulse') {
+          await fetchPulse();
+          return;
+        }
         const endpoint = currentMode === 'diary' ? '/api/entries' : '/api/all';
         const res = await fetch(endpoint);
         if (!res.ok) throw new Error('Failed');
@@ -722,6 +801,19 @@
         renderEntries();
       } catch (err) {
         showEmpty('無法連線到記憶系統');
+        console.error(err);
+      }
+      showLoading(false);
+    }
+
+    async function fetchPulse() {
+      try {
+        const res = await fetch('/api/pulse');
+        if (!res.ok) throw new Error('Failed');
+        pulseBuckets = await res.json();
+        renderPulse();
+      } catch (err) {
+        showEmpty('無法載入完整列表');
         console.error(err);
       }
       showLoading(false);
@@ -819,6 +911,83 @@
       panel.innerHTML = html;
     }
 
+    function renderPulse() {
+      const panel = document.getElementById('entryPanel');
+      const calSection = document.getElementById('calendarSection');
+      calSection.style.display = 'none';
+
+      if (pulseBuckets.length === 0) {
+        showEmpty('沒有找到任何記憶');
+        return;
+      }
+
+      const pinned = pulseBuckets.filter(b => b.pinned);
+      const dynamic = pulseBuckets.filter(b => !b.pinned);
+
+      let html = '';
+
+      if (pinned.length > 0) {
+        html += `<div class="pulse-section-label">📌 pinned — ${pinned.length} memories</div>`;
+        for (const b of pinned) {
+          html += renderBucketItem(b, true);
+        }
+      }
+
+      if (dynamic.length > 0) {
+        html += `<div class="pulse-section-label">🫧 dynamic — ${dynamic.length} memories</div>`;
+        for (const b of dynamic) {
+          html += renderBucketItem(b, false);
+        }
+      }
+
+      panel.innerHTML = html;
+    }
+
+    function renderBucketItem(b, isPinned) {
+      const ec = getEC(b.valence);
+      const tagsLine = b.tags ? b.tags.slice(0, 4).join(', ') : '';
+      return `<div class="bucket-item ${isPinned ? 'pinned' : 'dynamic'}" id="bucket-${b.id}" onclick="toggleBucket('${b.id}')">
+        <div class="bucket-header">
+          <span class="entry-emotion-mark" style="color:${ec};background:${ec}"></span>
+          <span class="bucket-name">${b.title || '無題'}</span>
+          <span class="bucket-arrow">›</span>
+        </div>
+        ${tagsLine ? `<div class="bucket-tags-line">${tagsLine}</div>` : ''}
+        <div class="bucket-detail" id="detail-${b.id}">
+          <div class="detail-loading">載入中⋯⋯</div>
+        </div>
+      </div>`;
+    }
+
+    async function toggleBucket(id) {
+      const item = document.getElementById('bucket-' + id);
+      const detail = document.getElementById('detail-' + id);
+
+      if (item.classList.contains('expanded')) {
+        item.classList.remove('expanded');
+        return;
+      }
+
+      item.classList.add('expanded');
+
+      // Check if already loaded
+      if (detail.dataset.loaded) return;
+
+      try {
+        const res = await fetch(`/api/bucket/${id}`);
+        if (!res.ok) throw new Error('Failed');
+        const entry = await res.json();
+        const ct = (entry.summary || entry.content || '沒有內容').replace(/\n/g, '<br>');
+        detail.innerHTML = ct;
+        if (entry.tags) {
+          detail.innerHTML += `<div class="entry-tags" style="margin-top:0.6rem">${entry.tags.slice(0, 6).map(t => `<span class="tag">${t}</span>`).join('')}</div>`;
+        }
+        detail.dataset.loaded = 'true';
+      } catch (err) {
+        detail.innerHTML = '載入失敗';
+      }
+    }
+
     function getEC(v) {
       if (!v&&v!==0) return 'var(--emotion-calm)';
       return v>=0.7?'var(--emotion-warm)':v>=0.5?'var(--emotion-calm)':v>=0.3?'var(--emotion-blue)':'var(--emotion-deep)';
@@ -838,6 +1007,8 @@
       currentMode = mode;
       document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
       selectedDate = null;
+      const calSection = document.getElementById('calendarSection');
+      calSection.style.display = mode === 'pulse' ? 'none' : 'block';
       fetchEntries();
     }
 
