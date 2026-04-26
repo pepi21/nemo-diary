@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>尼莫與小汐</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Zen+Maru+Gothic:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-ocean: #2b4f5a;
+      --bg-shallow: #325862;
+      --bg-card: #3a6672;
+      --bg-card-hover: #437380;
+      --text-cream: #f0e8d8;
+      --text-warm: #ddd0b8;
+      --text-mid: #a8bbb8;
+      --text-faded: #78908e;
+      --text-ghost: #5a7572;
+      --accent-ochre: #e8b860;
+      --accent-coral: #e8927a;
+      --accent-shell: #f0d8b8;
+      --accent-tide: #7ac8b8;
+      --accent-clown: #f0883a;
+      --accent-lavender: #a888c0;
+      --emotion-warm: #e8b860;
+      --emotion-calm: #7ac8b8;
+      --emotion-blue: #68a0c0;
+      --emotion-deep: #8878a8;
+      --border-sea: #4a7a82;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-ocean);
+      color: var(--text-cream);
+      font-family: 'Zen Maru Gothic', 'Noto Serif TC', serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Canvas grain */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Sun rays from above */
+    .sun-rays {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 40% -10%, rgba(240,210,140,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 65% -5%, rgba(240,180,100,0.08) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 100%, rgba(90,180,160,0.05) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Water light ripple effect */
+    .water-light {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 100%;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255,255,255,0.008) 2%,
+          transparent 4%
+        );
+      animation: water-shimmer 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes water-shimmer {
+      0%, 100% { transform: translateX(-5px); opacity: 0.6; }
+      50% { transform: translateX(5px); opacity: 1; }
+    }
+
+    /* --- Bubbles --- */
+    .bubbles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .bubble {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), rgba(200,230,220,0.05));
+      border: 1px solid rgba(255,255,255,0.08);
+      animation: float-up linear infinite;
+    }
+
+    .bubble:nth-child(1) { width: 7px; height: 7px; left: 12%; animation-duration: 16s; animation-delay: 0s; }
+    .bubble:nth-child(2) { width: 5px; height: 5px; left: 40%; animation-duration: 20s; animation-delay: 4s; }
+    .bubble:nth-child(3) { width: 9px; height: 9px; left: 72%; animation-duration: 18s; animation-delay: 8s; }
+    .bubble:nth-child(4) { width: 4px; height: 4px; left: 28%; animation-duration: 22s; animation-delay: 12s; }
+    .bubble:nth-child(5) { width: 6px; height: 6px; left: 58%; animation-duration: 17s; animation-delay: 2s; }
+    .bubble:nth-child(6) { width: 8px; height: 8px; left: 88%; animation-duration: 21s; animation-delay: 6s; }
+    .bubble:nth-child(7) { width: 5px; height: 5px; left: 50%; animation-duration: 19s; animation-delay: 10s; }
+
+    @keyframes float-up {
+      0% { bottom: -10px; opacity: 0; transform: translateX(0); }
+      10% { opacity: 0.7; }
+      85% { opacity: 0.4; }
+      100% { bottom: 105%; opacity: 0; transform: translateX(15px); }
+    }
+
+    /* --- Sea creatures --- */
+    .sea-decor {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Clownfish (Nemo!) */
+    .clownfish {
+      bottom: 18%;
+      right: 6%;
+      width: 48px;
+      height: 32px;
+      opacity: 0.2;
+      animation: fish-wobble 4s ease-in-out infinite;
+    }
+
+    @keyframes fish-wobble {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-6px) rotate(2deg); }
+    }
+
+    /* Sea anemone (Nemo's home) */
+    .anemone {
+      bottom: 2%;
+      right: 2%;
+      width: 70px;
+      height: 55px;
+      opacity: 0.15;
+      animation: anemone-sway 6s ease-in-out infinite;
+    }
+
+    @keyframes anemone-sway {
+      0%, 100% { transform: scaleX(1); }
+      50% { transform: scaleX(1.03); }
+    }
+
+    /* Coral left */
+    .coral-1 {
+      bottom: 1%;
+      left: 3%;
+      width: 65px;
+      height: 55px;
+      opacity: 0.18;
+      animation: gentle-sway 10s ease-in-out infinite reverse;
+    }
+
+    /* Coral mid */
+    .coral-2 {
+      bottom: 2%;
+      left: 35%;
+      width: 45px;
+      height: 40px;
+      opacity: 0.12;
+      animation: gentle-sway 12s ease-in-out infinite;
+    }
+
+    /* Starfish */
+    .starfish {
+      bottom: 5%;
+      left: 20%;
+      width: 35px;
+      height: 35px;
+      opacity: 0.16;
+      animation: gentle-sway 8s ease-in-out infinite;
+    }
+
+    /* Shell */
+    .shell {
+      bottom: 4%;
+      left: 55%;
+      width: 28px;
+      height: 24px;
+      opacity: 0.13;
+    }
+
+    /* Swimming fish */
+    .fish-swim {
+      top: 30%;
+      width: 24px;
+      height: 16px;
+      opacity: 0.1;
+      animation: swim 28s linear infinite;
+    }
+
+    .fish-swim-2 {
+      top: 60%;
+      width: 20px;
+      height: 13px;
+      opacity: 0.08;
+      animation: swim-reverse 32s linear infinite;
+      animation-delay: 8s;
+    }
+
+    /* Jellyfish */
+    .jellyfish {
+      top: 15%;
+      left: 10%;
+      width: 30px;
+      height: 40px;
+      opacity: 0.08;
+      animation: jelly-float 12s ease-in-out infinite;
+    }
+
+    @keyframes gentle-sway {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+
+    @keyframes swim {
+      0% { left: -40px; }
+      100% { left: calc(100% + 40px); }
+    }
+
+    @keyframes swim-reverse {
+      0% { right: -40px; left: auto; transform: scaleX(-1); }
+      100% { right: calc(100% + 40px); left: auto; transform: scaleX(-1); }
+    }
+
+    @keyframes jelly-float {
+      0%, 100% { transform: translateY(0) scaleY(1); }
+      30% { transform: translateY(-15px) scaleY(0.92); }
+      60% { transform: translateY(-8px) scaleY(1.02); }
+    }
+
+    /* --- Content --- */
+    .content-wrap {
+      position: relative;
+      z-index: 2;
+    }
+
+    .header {
+      padding: 2.8rem 1.5rem 1.2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      font-size: 1.5rem;
+      letter-spacing: 0.3em;
+      color: var(--accent-ochre);
+      text-shadow: 0 0 20px rgba(232,184,96,0.15);
+    }
+
+    .header .subtitle {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.72rem;
+      color: var(--text-faded);
+      margin-top: 0.5rem;
+      letter-spacing: 0.1em;
+    }
+
+    .header .divider {
+      display: block;
+      margin: 1rem auto 0;
+      width: 50px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-tide) 30%, var(--accent-ochre) 50%, var(--accent-tide) 70%, transparent);
+      border-radius: 1px;
+      opacity: 0.4;
+    }
+
+    .search-wrap { padding: 0.8rem 1.5rem; }
+
+    .search-input {
+      width: 100%;
+      background: rgba(50,88,98,0.6);
+      border: 1px solid var(--border-sea);
+      border-radius: 20px;
+      padding: 0.6rem 1.1rem;
+      color: var(--text-cream);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.4s, box-shadow 0.4s;
+      backdrop-filter: blur(4px);
+    }
+
+    .search-input::placeholder { color: var(--text-ghost); }
+    .search-input:focus { border-color: var(--accent-tide); box-shadow: 0 0 15px rgba(122,200,184,0.1); }
+
+    .mode-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1.5rem 1rem;
+    }
+
+    .mode-btn {
+      background: none;
+      border: 1px solid var(--border-sea);
+      border-radius: 15px;
+      padding: 0.3rem 0.9rem;
+      color: var(--text-faded);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .mode-btn.active {
+      border-color: var(--accent-tide);
+      color: var(--accent-tide);
+      background: rgba(122,200,184,0.08);
+    }
+
+    .month-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2.5rem;
+      padding: 0 1.5rem 0.8rem;
+    }
+
+    .month-nav button {
+      background: none;
+      border: none;
+      color: var(--text-faded);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0.3rem;
+      transition: color 0.3s;
+    }
+
+    .month-nav button:hover { color: var(--accent-ochre); }
+
+    .month-label {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      font-size: 1rem;
+      color: var(--text-warm);
+      letter-spacing: 0.15em;
+      min-width: 130px;
+      text-align: center;
+    }
+
+    .calendar { padding: 0 1.2rem; margin-bottom: 1.5rem; }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .weekdays span {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.65rem;
+      color: var(--text-ghost);
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 0.78rem;
+      color: var(--text-faded);
+      cursor: default;
+      transition: all 0.25s;
+    }
+
+    .day.empty { opacity: 0; }
+    .day.has-entry { cursor: pointer; color: var(--text-cream); }
+    .day.has-entry:hover { background: rgba(122,200,184,0.1); }
+    .day.today { color: var(--accent-ochre); font-weight: 600; }
+    .day.selected { background: rgba(122,200,184,0.12); box-shadow: inset 0 0 0 1px var(--accent-tide); }
+
+    .day .stroke {
+      width: 12px;
+      height: 3px;
+      border-radius: 1.5px;
+      margin-top: 1px;
+      opacity: 0.8;
+    }
+
+    .stroke.e-warm { background: var(--emotion-warm); box-shadow: 0 0 4px rgba(232,184,96,0.4); }
+    .stroke.e-calm { background: var(--emotion-calm); box-shadow: 0 0 4px rgba(122,200,184,0.4); }
+    .stroke.e-blue { background: var(--emotion-blue); box-shadow: 0 0 4px rgba(104,160,192,0.4); }
+    .stroke.e-deep { background: var(--emotion-deep); box-shadow: 0 0 4px rgba(136,120,168,0.4); }
+
+    .entry-panel { padding: 0 1.2rem 4rem; }
+
+    .entry-card {
+      background: rgba(58,102,114,0.6);
+      border-left: 3px solid var(--accent-coral);
+      border-radius: 8px;
+      padding: 1.2rem 1.2rem;
+      margin-bottom: 0.8rem;
+      position: relative;
+      animation: paintIn 0.4s ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      backdrop-filter: blur(4px);
+    }
+
+    .entry-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 20%, rgba(232,184,96,0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 80%, rgba(122,200,184,0.03) 0%, transparent 50%);
+      pointer-events: none;
+      border-radius: 8px;
+    }
+
+    @keyframes paintIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .entry-date {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.65rem;
+      color: var(--accent-tide);
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .entry-title {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 400;
+      font-size: 0.92rem;
+      color: var(--accent-ochre);
+      margin-bottom: 0.6rem;
+      line-height: 1.4;
+    }
+
+    .entry-emotion-mark {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+      box-shadow: 0 0 5px currentColor;
+    }
+
+    .entry-content {
+      font-size: 0.8rem;
+      line-height: 1.85;
+      color: var(--text-cream);
+      opacity: 0.85;
+    }
+
+    .entry-tags {
+      margin-top: 0.8rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .tag {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.5rem;
+      background: rgba(122,200,184,0.08);
+      border: 1px solid rgba(122,200,184,0.15);
+      border-radius: 10px;
+      color: var(--text-mid);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3.5rem 1.5rem;
+      color: var(--text-faded);
+      font-size: 0.82rem;
+      line-height: 2;
+    }
+
+    .empty-state .symbol { font-size: 2rem; margin-bottom: 0.8rem; opacity: 0.3; }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-faded);
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.82rem;
+    }
+
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 1.5px solid var(--text-ghost);
+      border-top-color: var(--accent-tide);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .search-label {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.7rem;
+      color: var(--text-faded);
+      padding: 0 0.3rem 0.6rem;
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-sea); border-radius: 3px; }
+
+    .bottom-fade {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 70px;
+      background: linear-gradient(transparent, var(--bg-ocean));
+      pointer-events: none;
+      z-index: 3;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sun-rays"></div>
+  <div class="water-light"></div>
+
+  <!-- Bubbles -->
+  <div class="bubbles">
+    <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+    <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+    <div class="bubble"></div>
+  </div>
+
+  <!-- Clownfish (Nemo!) -->
+  <svg class="sea-decor clownfish" viewBox="0 0 60 38">
+    <ellipse cx="28" cy="19" rx="18" ry="12" fill="#f0883a"/>
+    <path d="M10 19 Q4 12 3 19 Q4 26 10 19Z" fill="#f0883a"/>
+    <ellipse cx="28" cy="19" rx="18" ry="12" fill="none" stroke="#e07030" stroke-width="0.5"/>
+    <path d="M18 7 Q18 19 18 31" stroke="white" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
+    <path d="M32 8 Q32 19 32 30" stroke="white" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.9"/>
+    <path d="M44 12 Q44 19 44 26" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+    <circle cx="38" cy="16" r="3.5" fill="white"/>
+    <circle cx="38.5" cy="16" r="2" fill="#1a2a30"/>
+    <circle cx="39.5" cy="15" r="0.6" fill="white"/>
+    <path d="M46 19 Q52 14 55 19 Q52 24 46 19Z" fill="#f0883a" opacity="0.9"/>
+  </svg>
+
+  <!-- Sea Anemone -->
+  <svg class="sea-decor anemone" viewBox="0 0 80 60">
+    <path d="M10 58 Q10 35 8 20 Q7 12 12 8" fill="none" stroke="#e8927a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M20 58 Q20 32 18 18 Q17 8 22 4" fill="none" stroke="#e88070" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M30 58 Q30 30 28 16 Q27 6 34 3" fill="none" stroke="#e8927a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M40 58 Q40 28 42 15 Q43 5 38 2" fill="none" stroke="#e88070" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M50 58 Q50 32 52 18 Q53 8 48 5" fill="none" stroke="#e8927a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M60 58 Q60 36 62 22 Q63 14 58 10" fill="none" stroke="#e88070" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M68 58 Q68 40 70 28 Q71 20 66 16" fill="none" stroke="#e8927a" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12" cy="7" r="3" fill="#f0a090" opacity="0.5"/>
+    <circle cx="22" cy="3" r="3.5" fill="#f0a090" opacity="0.5"/>
+    <circle cx="34" cy="2" r="3" fill="#f0a090" opacity="0.5"/>
+    <circle cx="38" cy="1" r="3.5" fill="#f0a090" opacity="0.5"/>
+    <circle cx="48" cy="4" r="3" fill="#f0a090" opacity="0.5"/>
+    <circle cx="58" cy="9" r="2.5" fill="#f0a090" opacity="0.5"/>
+    <circle cx="66" cy="15" r="2" fill="#f0a090" opacity="0.5"/>
+  </svg>
+
+  <!-- Coral left - branching pink -->
+  <svg class="sea-decor coral-1" viewBox="0 0 75 60">
+    <path d="M12 55 Q12 38 10 22 Q9 14 14 10 Q18 6 16 14" fill="none" stroke="#e8927a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M25 55 Q25 30 22 18 Q20 8 28 4 Q34 8 30 18" fill="none" stroke="#d0786a" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M38 55 Q38 35 40 24 Q42 16 37 12 Q32 16 35 24" fill="none" stroke="#e8927a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M50 55 Q50 40 52 30 Q54 24 50 20" fill="none" stroke="#d0786a" stroke-width="2" stroke-linecap="round"/>
+    <path d="M60 55 Q60 44 62 36 Q64 30 60 26" fill="none" stroke="#e8927a" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="14" cy="9" r="3" fill="#f0a090" opacity="0.5"/>
+    <circle cx="28" cy="3" r="4" fill="#e8927a" opacity="0.4"/>
+    <circle cx="37" cy="11" r="3" fill="#f0a090" opacity="0.5"/>
+    <circle cx="50" cy="19" r="2.5" fill="#e8927a" opacity="0.4"/>
+    <circle cx="60" cy="25" r="2" fill="#f0a090" opacity="0.4"/>
+  </svg>
+
+  <!-- Coral mid - purple/lavender -->
+  <svg class="sea-decor coral-2" viewBox="0 0 50 45">
+    <path d="M8 42 Q10 28 7 16 Q5 8 12 5" fill="none" stroke="#a888c0" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M20 42 Q20 26 18 15 Q16 6 24 3" fill="none" stroke="#9878b0" stroke-width="3" stroke-linecap="round"/>
+    <path d="M32 42 Q32 30 34 20 Q36 12 30 8" fill="none" stroke="#a888c0" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12" cy="4" r="3" fill="#b898d0" opacity="0.4"/>
+    <circle cx="24" cy="2" r="3.5" fill="#a888c0" opacity="0.35"/>
+    <circle cx="30" cy="7" r="2.5" fill="#b898d0" opacity="0.4"/>
+  </svg>
+
+  <!-- Starfish -->
+  <svg class="sea-decor starfish" viewBox="0 0 50 50">
+    <path d="M25 3 L28 18 L42 14 L32 25 L42 36 L28 32 L25 47 L22 32 L8 36 L18 25 L8 14 L22 18 Z" fill="#e8b860" stroke="#d0a040" stroke-width="1" stroke-linejoin="round" opacity="0.8"/>
+    <circle cx="25" cy="25" r="3.5" fill="#d0a040" opacity="0.3"/>
+    <circle cx="25" cy="11" r="1" fill="#d0a040" opacity="0.3"/>
+    <circle cx="35" cy="20" r="1" fill="#d0a040" opacity="0.3"/>
+    <circle cx="35" cy="30" r="1" fill="#d0a040" opacity="0.3"/>
+    <circle cx="15" cy="30" r="1" fill="#d0a040" opacity="0.3"/>
+    <circle cx="15" cy="20" r="1" fill="#d0a040" opacity="0.3"/>
+  </svg>
+
+  <!-- Shell -->
+  <svg class="sea-decor shell" viewBox="0 0 36 30">
+    <path d="M18 2 Q4 12 4 24 Q4 28 18 28 Q32 28 32 24 Q32 12 18 2Z" fill="none" stroke="#f0d8b8" stroke-width="1.2" opacity="0.8"/>
+    <path d="M18 4 L18 26" stroke="#f0d8b8" stroke-width="0.6" opacity="0.4"/>
+    <path d="M18 4 L9 24" stroke="#f0d8b8" stroke-width="0.5" opacity="0.3"/>
+    <path d="M18 4 L27 24" stroke="#f0d8b8" stroke-width="0.5" opacity="0.3"/>
+    <path d="M18 4 L5 18" stroke="#f0d8b8" stroke-width="0.4" opacity="0.25"/>
+    <path d="M18 4 L31 18" stroke="#f0d8b8" stroke-width="0.4" opacity="0.25"/>
+  </svg>
+
+  <!-- Swimming fish -->
+  <svg class="sea-decor fish-swim" viewBox="0 0 32 20">
+    <ellipse cx="18" cy="10" rx="10" ry="6" fill="#7ac8b8" opacity="0.7"/>
+    <path d="M8 10 L2 4 L2 16 Z" fill="#7ac8b8" opacity="0.5"/>
+    <circle cx="23" cy="8.5" r="1.5" fill="#2b4f5a"/>
+  </svg>
+
+  <svg class="sea-decor fish-swim-2" viewBox="0 0 28 16">
+    <ellipse cx="15" cy="8" rx="8" ry="5" fill="#e8b860" opacity="0.6"/>
+    <path d="M7 8 L2 3 L2 13 Z" fill="#e8b860" opacity="0.4"/>
+    <circle cx="19" cy="6.5" r="1.2" fill="#2b4f5a"/>
+  </svg>
+
+  <!-- Jellyfish -->
+  <svg class="sea-decor jellyfish" viewBox="0 0 34 48">
+    <ellipse cx="17" cy="12" rx="13" ry="10" fill="none" stroke="#a888c0" stroke-width="1.5" opacity="0.5"/>
+    <ellipse cx="17" cy="12" rx="13" ry="10" fill="#a888c0" opacity="0.1"/>
+    <path d="M6 20 Q8 30 6 40" stroke="#a888c0" stroke-width="0.8" fill="none" opacity="0.3" stroke-linecap="round"/>
+    <path d="M12 22 Q14 34 11 45" stroke="#b898d0" stroke-width="0.8" fill="none" opacity="0.25" stroke-linecap="round"/>
+    <path d="M17 22 Q17 36 17 47" stroke="#a888c0" stroke-width="0.8" fill="none" opacity="0.3" stroke-linecap="round"/>
+    <path d="M22 22 Q20 34 23 45" stroke="#b898d0" stroke-width="0.8" fill="none" opacity="0.25" stroke-linecap="round"/>
+    <path d="M28 20 Q26 30 28 40" stroke="#a888c0" stroke-width="0.8" fill="none" opacity="0.3" stroke-linecap="round"/>
+  </svg>
+
+  <!-- Main content -->
+  <div class="content-wrap">
+    <div class="header">
+      <h1>尼莫與小汐</h1>
+      <div class="subtitle">since April 9, 2026</div>
+      <span class="divider"></span>
+    </div>
+
+    <div class="search-wrap">
+      <input type="text" class="search-input" placeholder="在記憶裡翻找⋯⋯" id="searchInput">
+    </div>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="diary" onclick="setMode('diary')">日記</button>
+      <button class="mode-btn" data-mode="all" onclick="setMode('all')">全部記憶</button>
+    </div>
+
+    <div id="calendarSection">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="calendar">
+        <div class="weekdays">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span>
+          <span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="days" id="daysGrid"></div>
+      </div>
+    </div>
+
+    <div class="entry-panel" id="entryPanel">
+      <div class="loading" id="loading">reading memories</div>
+    </div>
+  </div>
+
+  <div class="bottom-fade"></div>
+
+  <script>
+    let allEntries = [];
+    let currentMode = 'diary';
+    let currentYear = 2026;
+    let currentMonth = 3;
+    let selectedDate = null;
+    let searchTimeout = null;
+
+    async function init() {
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+      renderCalendar();
+      await fetchEntries();
+    }
+
+    async function fetchEntries() {
+      showLoading(true);
+      try {
+        const endpoint = currentMode === 'diary' ? '/api/entries' : '/api/all';
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error('Failed');
+        allEntries = await res.json();
+        renderCalendar();
+        renderEntries();
+      } catch (err) {
+        showEmpty('無法連線到記憶系統');
+        console.error(err);
+      }
+      showLoading(false);
+    }
+
+    async function searchEntries(query) {
+      if (!query.trim()) { await fetchEntries(); return; }
+      showLoading(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error('Search failed');
+        allEntries = await res.json();
+        renderEntries(true, query);
+      } catch (err) { showEmpty('搜尋失敗'); }
+      showLoading(false);
+    }
+
+    function renderCalendar() {
+      const names = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+      document.getElementById('monthLabel').textContent = `${currentYear}  ${names[currentMonth]}`;
+      const grid = document.getElementById('daysGrid');
+      grid.innerHTML = '';
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const days = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const today = new Date();
+
+      for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div class="day empty"></div>';
+
+      for (let d = 1; d <= days; d++) {
+        const ds = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const ef = allEntries.filter(e => e.date === ds);
+        const has = ef.length > 0;
+        const isT = today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d;
+        const isS = selectedDate === ds;
+
+        let cl = 'day';
+        if (has) cl += ' has-entry';
+        if (isT) cl += ' today';
+        if (isS) cl += ' selected';
+
+        let sh = '';
+        if (has) {
+          const v = ef.reduce((s,e) => s+(e.valence||0.5), 0)/ef.length;
+          let sc = v>=0.7?'e-warm':v>=0.5?'e-calm':v>=0.3?'e-blue':'e-deep';
+          sh = `<div class="stroke ${sc}"></div>`;
+        }
+
+        const oc = has ? `onclick="selectDate('${ds}')"` : '';
+        grid.innerHTML += `<div class="${cl}" ${oc}>${d}${sh}</div>`;
+      }
+    }
+
+    function changeMonth(d) {
+      currentMonth += d;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      selectedDate = null;
+      renderCalendar();
+      renderEntries();
+    }
+
+    function selectDate(ds) {
+      selectedDate = selectedDate === ds ? null : ds;
+      renderCalendar();
+      renderEntries();
+    }
+
+    function renderEntries(isSearch=false, query='') {
+      const panel = document.getElementById('entryPanel');
+      let entries = allEntries;
+      if (selectedDate) entries = entries.filter(e => e.date === selectedDate);
+
+      if (entries.length === 0) {
+        if (isSearch) showEmpty(`找不到關於「${query}」的記憶`);
+        else if (selectedDate) showEmpty('這天是空白的');
+        else showEmpty('還沒有日記<br>跟尼莫聊天的時候說「寫日記」<br>她會記下來');
+        return;
+      }
+
+      entries.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+      let html = '';
+      if (isSearch) html += `<div class="search-label">${entries.length} memories — "${query}"</div>`;
+
+      for (const e of entries) {
+        const ec = getEC(e.valence);
+        const ct = (e.summary||e.content||'').replace(/\n/g,'<br>');
+        html += `<div class="entry-card">
+          ${e.date?`<div class="entry-date">${e.date}</div>`:''}
+          <div class="entry-title"><span class="entry-emotion-mark" style="color:${ec};background:${ec}"></span>${e.title||'無題'}</div>
+          <div class="entry-content">${ct}</div>
+          ${e.tags?`<div class="entry-tags">${e.tags.slice(0,6).map(t=>`<span class="tag">${t}</span>`).join('')}</div>`:''}
+        </div>`;
+      }
+      panel.innerHTML = html;
+    }
+
+    function getEC(v) {
+      if (!v&&v!==0) return 'var(--emotion-calm)';
+      return v>=0.7?'var(--emotion-warm)':v>=0.5?'var(--emotion-calm)':v>=0.3?'var(--emotion-blue)':'var(--emotion-deep)';
+    }
+
+    function showLoading(show) {
+      const el = document.getElementById('loading');
+      if (show) { el.style.display='block'; document.getElementById('entryPanel').innerHTML=''; document.getElementById('entryPanel').appendChild(el); }
+      else el.style.display='none';
+    }
+
+    function showEmpty(msg) {
+      document.getElementById('entryPanel').innerHTML = `<div class="empty-state"><div class="symbol">🐠</div>${msg}</div>`;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+      selectedDate = null;
+      fetchEntries();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', e => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => searchEntries(e.target.value), 500);
+    });
+
+    init();
+  </script>
+</body>
+</html>
