@@ -765,111 +765,126 @@
     </div>
 
     <div class="entry-panel" id="entryPanel">
-      <div class="loading" id="loading">reading memories</div>
     </div>
   </div>
 
   <div class="bottom-fade"></div>
 
   <script>
-    let allEntries = [];
-    let currentMode = 'diary';
-    let currentYear = 2026;
-    let currentMonth = 3;
-    let selectedDate = null;
-    let searchTimeout = null;
-    let pulseBuckets = [];
+    var allEntries = [];
+    var currentMode = 'diary';
+    var currentYear = 2026;
+    var currentMonth = 3;
+    var selectedDate = null;
+    var searchTimeout = null;
 
-    async function init() {
-      const now = new Date();
+    function init() {
+      var now = new Date();
       currentYear = now.getFullYear();
       currentMonth = now.getMonth();
       renderCalendar();
-      await fetchEntries();
+      fetchData();
     }
 
-    async function fetchEntries() {
-      showLoading(true);
-      try {
-        if (currentMode === 'pulse') {
-          await fetchPulse();
-          return;
-        }
-        const endpoint = currentMode === 'diary' ? '/api/entries' : '/api/all';
-        const res = await fetch(endpoint);
-        if (!res.ok) throw new Error('Failed');
-        allEntries = await res.json();
-        renderCalendar();
-        renderEntries();
-      } catch (err) {
-        showEmpty('無法連線到記憶系統');
-        console.error(err);
-      }
-      showLoading(false);
+    function fetchData() {
+      var panel = document.getElementById('entryPanel');
+      panel.innerHTML = '<div style="text-align:center;padding:3rem;color:#78908e;font-style:italic;">reading memories...</div>';
+
+      var calSection = document.getElementById('calendarSection');
+      calSection.style.display = (currentMode === 'pulse') ? 'none' : 'block';
+
+      var url = '/api/entries';
+      if (currentMode === 'all') url = '/api/all';
+      if (currentMode === 'pulse') url = '/api/pulse';
+
+      fetch(url)
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data) {
+          if (currentMode === 'pulse') {
+            // Convert pulse data to entry-like format
+            allEntries = data.map(function(b) {
+              var typeLabel = b.pinned ? '📌' : (b.feel ? '🫧' : '💭');
+              return {
+                id: b.id,
+                title: typeLabel + ' ' + (b.title || b.id),
+                content: b.tags ? b.tags.join(', ') : '',
+                valence: b.valence,
+                tags: b.tags,
+                date: null,
+                isPulse: true
+              };
+            });
+          } else {
+            allEntries = data;
+          }
+          renderCalendar();
+          renderEntries();
+        })
+        .catch(function(err) {
+          console.error('Fetch error:', err);
+          panel.innerHTML = '<div style="text-align:center;padding:3rem;color:#78908e;">無法連線到記憶系統<br>' + err.message + '</div>';
+        });
     }
 
-    async function fetchPulse() {
-      try {
-        const res = await fetch('/api/pulse');
-        if (!res.ok) throw new Error('Failed');
-        pulseBuckets = await res.json();
-        renderPulse();
-      } catch (err) {
-        showEmpty('無法載入完整列表');
-        console.error(err);
-      }
-      showLoading(false);
-    }
+    function searchEntries(query) {
+      if (!query.trim()) { fetchData(); return; }
+      var panel = document.getElementById('entryPanel');
+      panel.innerHTML = '<div style="text-align:center;padding:3rem;color:#78908e;font-style:italic;">搜尋中...</div>';
 
-    async function searchEntries(query) {
-      if (!query.trim()) { await fetchEntries(); return; }
-      showLoading(true);
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (!res.ok) throw new Error('Search failed');
-        allEntries = await res.json();
-        renderEntries(true, query);
-      } catch (err) { showEmpty('搜尋失敗'); }
-      showLoading(false);
+      fetch('/api/search?q=' + encodeURIComponent(query))
+        .then(function(res) {
+          if (!res.ok) throw new Error('Failed');
+          return res.json();
+        })
+        .then(function(data) {
+          allEntries = data;
+          renderEntries(true, query);
+        })
+        .catch(function(err) {
+          panel.innerHTML = '<div style="text-align:center;padding:3rem;color:#78908e;">搜尋失敗</div>';
+        });
     }
 
     function renderCalendar() {
-      const names = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
-      document.getElementById('monthLabel').textContent = `${currentYear}  ${names[currentMonth]}`;
-      const grid = document.getElementById('daysGrid');
+      var names = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+      document.getElementById('monthLabel').textContent = currentYear + '  ' + names[currentMonth];
+      var grid = document.getElementById('daysGrid');
       grid.innerHTML = '';
-      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-      const days = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const today = new Date();
+      var firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      var today = new Date();
 
-      for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div class="day empty"></div>';
+      for (var i = 0; i < firstDay; i++) grid.innerHTML += '<div class="day empty"></div>';
 
-      for (let d = 1; d <= days; d++) {
-        const ds = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const ef = allEntries.filter(e => e.date === ds);
-        const has = ef.length > 0;
-        const isT = today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d;
-        const isS = selectedDate === ds;
+      for (var d = 1; d <= daysInMonth; d++) {
+        var ds = currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        var ef = allEntries.filter(function(e) { return e.date === ds; });
+        var has = ef.length > 0;
+        var isT = today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d;
+        var isS = selectedDate === ds;
 
-        let cl = 'day';
+        var cl = 'day';
         if (has) cl += ' has-entry';
         if (isT) cl += ' today';
         if (isS) cl += ' selected';
 
-        let sh = '';
+        var sh = '';
         if (has) {
-          const v = ef.reduce((s,e) => s+(e.valence||0.5), 0)/ef.length;
-          let sc = v>=0.7?'e-warm':v>=0.5?'e-calm':v>=0.3?'e-blue':'e-deep';
-          sh = `<div class="stroke ${sc}"></div>`;
+          var v = ef.reduce(function(s,e) { return s+(e.valence||0.5); }, 0)/ef.length;
+          var sc = v>=0.7?'e-warm':v>=0.5?'e-calm':v>=0.3?'e-blue':'e-deep';
+          sh = '<div class="stroke ' + sc + '"></div>';
         }
 
-        const oc = has ? `onclick="selectDate('${ds}')"` : '';
-        grid.innerHTML += `<div class="${cl}" ${oc}>${d}${sh}</div>`;
+        var oc = has ? ' onclick="selectDate(\'' + ds + '\')"' : '';
+        grid.innerHTML += '<div class="' + cl + '"' + oc + '>' + d + sh + '</div>';
       }
     }
 
-    function changeMonth(d) {
-      currentMonth += d;
+    function changeMonth(delta) {
+      currentMonth += delta;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
       selectedDate = null;
@@ -883,148 +898,92 @@
       renderEntries();
     }
 
-    function renderEntries(isSearch=false, query='') {
-      const panel = document.getElementById('entryPanel');
-      let entries = allEntries;
-      if (selectedDate) entries = entries.filter(e => e.date === selectedDate);
+    function renderEntries(isSearch, query) {
+      var panel = document.getElementById('entryPanel');
+      var entries = allEntries;
+      if (selectedDate) {
+        entries = entries.filter(function(e) { return e.date === selectedDate; });
+      }
 
       if (entries.length === 0) {
-        if (isSearch) showEmpty(`找不到關於「${query}」的記憶`);
-        else if (selectedDate) showEmpty('這天是空白的');
-        else showEmpty('還沒有日記<br>跟尼莫聊天的時候說「寫日記」<br>她會記下來');
+        if (isSearch) {
+          panel.innerHTML = '<div class="empty-state"><div class="symbol">🐠</div>找不到關於「' + query + '」的記憶</div>';
+        } else if (selectedDate) {
+          panel.innerHTML = '<div class="empty-state"><div class="symbol">🐠</div>這天是空白的</div>';
+        } else {
+          panel.innerHTML = '<div class="empty-state"><div class="symbol">🐠</div>還沒有日記<br>跟尼莫聊天的時候說「寫日記」<br>她會記下來</div>';
+        }
         return;
       }
 
-      entries.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      // Sort: entries with dates first (newest first), then entries without dates
+      entries.sort(function(a, b) {
+        if (a.date && b.date) return b.date.localeCompare(a.date);
+        if (a.date) return -1;
+        if (b.date) return 1;
+        return 0;
+      });
 
-      let html = '';
-      if (isSearch) html += `<div class="search-label">${entries.length} memories — "${query}"</div>`;
+      var html = '';
+      if (isSearch) html += '<div class="search-label">' + entries.length + ' memories — "' + query + '"</div>';
+      if (currentMode === 'pulse') html += '<div class="search-label">' + entries.length + ' 個記憶桶</div>';
 
-      for (const e of entries) {
-        const ec = getEC(e.valence);
-        const ct = (e.summary||e.content||'').replace(/\n/g,'<br>');
-        html += `<div class="entry-card">
-          ${e.date?`<div class="entry-date">${e.date}</div>`:''}
-          <div class="entry-title"><span class="entry-emotion-mark" style="color:${ec};background:${ec}"></span>${e.title||'無題'}</div>
-          <div class="entry-content">${ct}</div>
-          ${e.tags?`<div class="entry-tags">${e.tags.slice(0,6).map(t=>`<span class="tag">${t}</span>`).join('')}</div>`:''}
-        </div>`;
-      }
-      panel.innerHTML = html;
-    }
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var ec = getEC(e.valence);
+        var ct = (e.summary || e.content || '').replace(/\n/g, '<br>');
 
-    function renderPulse() {
-      const panel = document.getElementById('entryPanel');
-      const calSection = document.getElementById('calendarSection');
-      calSection.style.display = 'none';
-
-      if (pulseBuckets.length === 0) {
-        showEmpty('沒有找到任何記憶');
-        return;
-      }
-
-      const pinned = pulseBuckets.filter(b => b.pinned);
-      const dynamic = pulseBuckets.filter(b => !b.pinned && !b.feel);
-      const feel = pulseBuckets.filter(b => b.feel);
-
-      let html = '';
-
-      if (pinned.length > 0) {
-        html += `<div class="pulse-section-label">📌 核心記憶 — ${pinned.length} 個</div>`;
-        for (const b of pinned) {
-          html += renderBucketItem(b, 'pinned');
+        // For pulse mode, use different border color based on type
+        var borderColor = 'var(--accent-coral)';
+        if (e.isPulse) {
+          if (e.title && e.title.startsWith('📌')) borderColor = 'var(--accent-ochre)';
+          else if (e.title && e.title.startsWith('🫧')) borderColor = 'var(--accent-lavender)';
+          else borderColor = 'var(--accent-tide)';
         }
-      }
 
-      if (dynamic.length > 0) {
-        html += `<div class="pulse-section-label">💭 動態記憶 — ${dynamic.length} 個</div>`;
-        for (const b of dynamic) {
-          html += renderBucketItem(b, 'dynamic');
+        html += '<div class="entry-card" style="border-left-color:' + borderColor + ';">';
+        if (e.date) html += '<div class="entry-date">' + e.date + '</div>';
+        html += '<div class="entry-title"><span class="entry-emotion-mark" style="color:' + ec + ';background:' + ec + '"></span>' + (e.title || '無題') + '</div>';
+        if (ct) html += '<div class="entry-content">' + ct + '</div>';
+        if (e.tags) {
+          html += '<div class="entry-tags">';
+          var tagsToShow = e.tags.slice(0, 6);
+          for (var j = 0; j < tagsToShow.length; j++) {
+            html += '<span class="tag">' + tagsToShow[j] + '</span>';
+          }
+          html += '</div>';
         }
-      }
-
-      if (feel.length > 0) {
-        html += `<div class="pulse-section-label">🫧 感受 — ${feel.length} 個</div>`;
-        for (const b of feel) {
-          html += renderBucketItem(b, 'feel');
-        }
+        html += '</div>';
       }
 
       panel.innerHTML = html;
-    }
-
-    function renderBucketItem(b, type) {
-      const ec = getEC(b.valence);
-      const tagsLine = b.tags ? b.tags.slice(0, 4).join(', ') : '';
-      return `<div class="bucket-item ${type}" id="bucket-${b.id}" onclick="toggleBucket('${b.id}')">
-        <div class="bucket-header">
-          <span class="entry-emotion-mark" style="color:${ec};background:${ec}"></span>
-          <span class="bucket-name">${b.title || '無題'}</span>
-          <span class="bucket-arrow">›</span>
-        </div>
-        ${tagsLine ? `<div class="bucket-tags-line">${tagsLine}</div>` : ''}
-        <div class="bucket-detail" id="detail-${b.id}">
-          <div class="detail-loading">載入中⋯⋯</div>
-        </div>
-      </div>`;
-    }
-
-    async function toggleBucket(id) {
-      const item = document.getElementById('bucket-' + id);
-      const detail = document.getElementById('detail-' + id);
-
-      if (item.classList.contains('expanded')) {
-        item.classList.remove('expanded');
-        return;
-      }
-
-      item.classList.add('expanded');
-
-      // Check if already loaded
-      if (detail.dataset.loaded) return;
-
-      try {
-        const res = await fetch(`/api/bucket/${id}`);
-        if (!res.ok) throw new Error('Failed');
-        const entry = await res.json();
-        const ct = (entry.summary || entry.content || '沒有內容').replace(/\n/g, '<br>');
-        detail.innerHTML = ct;
-        if (entry.tags) {
-          detail.innerHTML += `<div class="entry-tags" style="margin-top:0.6rem">${entry.tags.slice(0, 6).map(t => `<span class="tag">${t}</span>`).join('')}</div>`;
-        }
-        detail.dataset.loaded = 'true';
-      } catch (err) {
-        detail.innerHTML = '載入失敗';
-      }
     }
 
     function getEC(v) {
-      if (!v&&v!==0) return 'var(--emotion-calm)';
-      return v>=0.7?'var(--emotion-warm)':v>=0.5?'var(--emotion-calm)':v>=0.3?'var(--emotion-blue)':'var(--emotion-deep)';
-    }
-
-    function showLoading(show) {
-      const el = document.getElementById('loading');
-      if (show) { el.style.display='block'; document.getElementById('entryPanel').innerHTML=''; document.getElementById('entryPanel').appendChild(el); }
-      else el.style.display='none';
-    }
-
-    function showEmpty(msg) {
-      document.getElementById('entryPanel').innerHTML = `<div class="empty-state"><div class="symbol">🐠</div>${msg}</div>`;
+      if (!v && v !== 0) return 'var(--emotion-calm)';
+      if (v >= 0.7) return 'var(--emotion-warm)';
+      if (v >= 0.5) return 'var(--emotion-calm)';
+      if (v >= 0.3) return 'var(--emotion-blue)';
+      return 'var(--emotion-deep)';
     }
 
     function setMode(mode) {
       currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+      var btns = document.querySelectorAll('.mode-btn');
+      for (var i = 0; i < btns.length; i++) {
+        if (btns[i].dataset.mode === mode) {
+          btns[i].classList.add('active');
+        } else {
+          btns[i].classList.remove('active');
+        }
+      }
       selectedDate = null;
-      const calSection = document.getElementById('calendarSection');
-      calSection.style.display = mode === 'pulse' ? 'none' : 'block';
-      fetchEntries();
+      fetchData();
     }
 
-    document.getElementById('searchInput').addEventListener('input', e => {
+    document.getElementById('searchInput').addEventListener('input', function(e) {
       clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => searchEntries(e.target.value), 500);
+      searchTimeout = setTimeout(function() { searchEntries(e.target.value); }, 500);
     });
 
     init();
