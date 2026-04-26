@@ -1,5 +1,6 @@
 import express from 'express';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -21,8 +22,19 @@ async function connectMCP() {
       { name: 'nemo-diary', version: '1.0.0' },
       { capabilities: {} }
     );
-    const transport = new SSEClientTransport(new URL(OMBRE_URL));
-    await client.connect(transport);
+
+    // Try Streamable HTTP first, fallback to SSE
+    let transport;
+    try {
+      transport = new StreamableHTTPClientTransport(new URL(OMBRE_URL));
+      await client.connect(transport);
+    } catch (e) {
+      console.log('Streamable HTTP failed, trying SSE...');
+      const sseUrl = new URL(OMBRE_URL.replace(/\/mcp$/, '/sse'));
+      transport = new SSEClientTransport(sseUrl);
+      await client.connect(transport);
+    }
+
     mcpClient = client;
     console.log('Connected to ombrebrain');
   } catch (err) {
