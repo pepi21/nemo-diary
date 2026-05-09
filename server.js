@@ -183,19 +183,37 @@ app.get('/api/pulse', async (req, res) => {
   }
 });
 
-// Single bucket detail
+// Single bucket detail — max_results 調高，避免落回 entries[0] 的 bug
 app.get('/api/bucket/:id', async (req, res) => {
   try {
     await ensureConnected();
     const result = await mcpClient.callTool({
       name: 'breath',
-      arguments: { query: req.params.id, max_results: 5, max_tokens: 5000 }
+      arguments: { query: req.params.id, max_results: 30, max_tokens: 8000 }
     });
     const entries = parseEntries(result);
     const match = entries.find(e => e.id === req.params.id);
-    res.json(match || entries[0] || { content: 'No content found' });
+    if (match) return res.json(match);
+    res.json({ content: '（找不到這筆記憶的內容）' });
   } catch (err) {
     console.error('Bucket error:', err.message);
+    mcpClient = null;
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 刪除（沉底）bucket
+app.delete('/api/bucket/:id', async (req, res) => {
+  try {
+    await ensureConnected();
+    await mcpClient.callTool({
+      name: 'trace',
+      arguments: { id: req.params.id, resolved: 1 }
+    });
+    cache = {};
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Delete error:', err.message);
     mcpClient = null;
     res.status(500).json({ error: err.message });
   }
