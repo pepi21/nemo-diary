@@ -617,25 +617,42 @@
       letter-spacing: 0.05em;
     }
 
-    /* Edit button */
-    .edit-btn {
+    /* Card action buttons (edit + delete) */
+    .card-actions {
       position: absolute;
-      top: 0.7rem;
-      right: 0.7rem;
+      top: 0.6rem;
+      right: 0.6rem;
+      display: flex;
+      gap: 0.3rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .entry-card:hover .card-actions { opacity: 1; }
+
+    .card-btn {
       background: none;
       border: 1px solid var(--border-sea);
       border-radius: 6px;
       color: var(--text-faded);
-      font-size: 0.65rem;
-      padding: 0.2rem 0.5rem;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.55rem;
       cursor: pointer;
-      opacity: 0;
       transition: all 0.2s;
       font-family: 'Zen Maru Gothic', sans-serif;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .entry-card:hover .edit-btn { opacity: 1; }
-    .edit-btn:hover { border-color: var(--accent-tide); color: var(--accent-tide); background: rgba(122,200,184,0.08); }
+    .card-btn:hover { border-color: var(--accent-tide); color: var(--accent-tide); background: rgba(122,200,184,0.08); }
+    .card-btn.del:hover { border-color: var(--accent-coral); color: var(--accent-coral); background: rgba(232,146,122,0.08); }
+
+    /* Mobile: always show buttons, bigger tap targets */
+    @media (hover: none), (max-width: 480px) {
+      .card-actions { opacity: 1; }
+      .card-btn { padding: 0.35rem 0.65rem; font-size: 0.72rem; }
+      .entry-card { padding-top: 2.4rem; }
+    }
 
     /* Edit modal */
     .edit-overlay {
@@ -1050,6 +1067,7 @@
           h += '<div class="bucket-header">';
           h += '<span class="bucket-icon">' + (b.pinned ? '📌' : b.feel ? '🫧' : '💭') + '</span>';
           h += '<span class="bucket-name">' + title + '</span>';
+          h += '<button class="card-btn del" style="margin-left:auto;margin-right:0.4rem;" onclick="event.stopPropagation();confirmDelete(\'' + b.id + '\',\'' + title.replace(/'/g,"\\'") + '\',true)" title="刪除">✕</button>';
           h += '<span class="bucket-arrow">›</span>';
           h += '</div>';
           if (tagsLine) h += '<div class="bucket-tags-line">' + tagsLine + '</div>';
@@ -1131,7 +1149,10 @@
 
         var rawContent = (e.summary || e.content || '').replace(/<br>/g, '\n');
         html += '<div class="entry-card" style="border-left-color:' + borderColor + ';">';
-        html += '<button class="edit-btn" onclick="openEdit(\'' + e.id + '\',\'' + (e.title||'無題').replace(/'/g,"\\'") + '\',\'' + (e.date||'') + '\',this)" title="編輯">✎ 編輯</button>';
+        html += '<div class="card-actions">';
+        html += '<button class="card-btn" onclick="openEdit(\'' + e.id + '\',\'' + (e.title||'無題').replace(/'/g,"\\'") + '\',\'' + (e.date||'') + '\')" title="編輯">✎</button>';
+        html += '<button class="card-btn del" onclick="confirmDelete(\'' + e.id + '\',\'' + (e.title||'無題').replace(/'/g,"\\'") + '\',false)" title="刪除">✕</button>';
+        html += '</div>';
         if (e.date) html += '<div class="entry-date">' + e.date + '</div>';
         html += '<div class="entry-title"><span class="entry-emotion-mark" style="color:' + ec + ';background:' + ec + '"></span>' + (e.title || '無題') + '</div>';
         if (ct) html += '<div class="entry-content" id="ec-' + e.id + '">' + ct + '</div>';
@@ -1176,10 +1197,28 @@
       searchTimeout = setTimeout(function() { searchEntries(e.target.value); }, 500);
     });
 
+    function confirmDelete(id, title, isPulse) {
+      if (!confirm('確定要刪除「' + title + '」嗎？\n（記憶會被沉底，不會再出現）')) return;
+      var url = '/api/bucket/' + id;
+      fetch(url, { method: 'DELETE' })
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function() {
+          if (isPulse) {
+            var el = document.getElementById('bi-' + id);
+            if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(function(){ el.remove(); }, 300); }
+          } else {
+            allEntries = allEntries.filter(function(e) { return e.id !== id; });
+            renderCalendar();
+            renderEntries();
+          }
+        })
+        .catch(function(err) { alert('刪除失敗：' + err.message); });
+    }
+
     var editCurrentId = null;
     var editContentEl = null;
 
-    function openEdit(id, title, date, btn) {
+    function openEdit(id, title, date) {
       editCurrentId = id;
       // Get current raw content from the DOM element
       var contentEl = document.getElementById('ec-' + id);
