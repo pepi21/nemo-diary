@@ -50,6 +50,7 @@ let cache = {};
 const CACHE_TTL = 3 * 60 * 1000;
 
 app.use(express.static(join(__dirname, 'public')));
+app.use(express.json());
 
 // Diary entries
 app.get('/api/entries', async (req, res) => {
@@ -195,6 +196,25 @@ app.get('/api/bucket/:id', async (req, res) => {
     res.json(match || entries[0] || { content: 'No content found' });
   } catch (err) {
     console.error('Bucket error:', err.message);
+    mcpClient = null;
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Edit bucket content
+app.put('/api/bucket/:id', async (req, res) => {
+  const { content } = req.body;
+  if (content === undefined) return res.status(400).json({ error: 'content required' });
+  try {
+    await ensureConnected();
+    await mcpClient.callTool({
+      name: 'trace',
+      arguments: { id: req.params.id, content: content }
+    });
+    cache = {}; // invalidate all cache
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Edit error:', err.message);
     mcpClient = null;
     res.status(500).json({ error: err.message });
   }
