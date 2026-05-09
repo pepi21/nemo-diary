@@ -946,19 +946,8 @@
         })
         .then(function(data) {
           if (currentMode === 'pulse') {
-            // Convert pulse data to entry-like format
-            allEntries = data.map(function(b) {
-              var typeLabel = b.pinned ? '📌' : (b.feel ? '🫧' : '💭');
-              return {
-                id: b.id,
-                title: typeLabel + ' ' + (b.title || b.id),
-                content: b.tags ? b.tags.join(', ') : '',
-                valence: b.valence,
-                tags: b.tags,
-                date: null,
-                isPulse: true
-              };
-            });
+            renderPulse(data);
+            return;
           } else {
             allEntries = data;
           }
@@ -1038,6 +1027,63 @@
       selectedDate = selectedDate === ds ? null : ds;
       renderCalendar();
       renderEntries();
+    }
+
+    function renderPulse(buckets) {
+      var panel = document.getElementById('entryPanel');
+      if (!buckets.length) {
+        panel.innerHTML = '<div class="empty-state"><div class="symbol">🐠</div>沒有記憶桶</div>';
+        return;
+      }
+
+      var pinned = buckets.filter(function(b) { return b.pinned; });
+      var feel   = buckets.filter(function(b) { return b.feel && !b.pinned; });
+      var dynamic = buckets.filter(function(b) { return !b.pinned && !b.feel; });
+
+      function renderSection(label, list, cls) {
+        if (!list.length) return '';
+        var h = '<div class="pulse-section-label">' + label + ' (' + list.length + ')</div>';
+        list.forEach(function(b) {
+          var title = b.title || b.id;
+          var tagsLine = b.tags && b.tags.length ? b.tags.join(' · ') : '';
+          h += '<div class="bucket-item ' + cls + '" id="bi-' + b.id + '" onclick="toggleBucket(\'' + b.id + '\')">';
+          h += '<div class="bucket-header">';
+          h += '<span class="bucket-icon">' + (b.pinned ? '📌' : b.feel ? '🫧' : '💭') + '</span>';
+          h += '<span class="bucket-name">' + title + '</span>';
+          h += '<span class="bucket-arrow">›</span>';
+          h += '</div>';
+          if (tagsLine) h += '<div class="bucket-tags-line">' + tagsLine + '</div>';
+          h += '<div class="bucket-detail" id="bd-' + b.id + '"><span class="detail-loading">載入中⋯⋯</span></div>';
+          h += '</div>';
+        });
+        return h;
+      }
+
+      panel.innerHTML =
+        '<div class="search-label">' + buckets.length + ' 個記憶桶</div>' +
+        renderSection('📌 固化記憶', pinned, 'pinned') +
+        renderSection('🫧 感受記憶', feel, 'feel') +
+        renderSection('💭 動態記憶', dynamic, 'dynamic');
+    }
+
+    function toggleBucket(id) {
+      var item = document.getElementById('bi-' + id);
+      var detail = document.getElementById('bd-' + id);
+      if (!item || !detail) return;
+
+      var isExpanded = item.classList.contains('expanded');
+      item.classList.toggle('expanded');
+
+      if (!isExpanded && detail.dataset.loaded !== '1') {
+        detail.dataset.loaded = '1';
+        fetch('/api/bucket/' + id)
+          .then(function(r) { return r.json(); })
+          .then(function(entry) {
+            var text = (entry.summary || entry.content || '（無內容）').replace(/\n/g, '<br>');
+            detail.innerHTML = text;
+          })
+          .catch(function() { detail.innerHTML = '無法載入內容'; });
+      }
     }
 
     function renderEntries(isSearch, query) {
