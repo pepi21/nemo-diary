@@ -183,18 +183,42 @@ app.get('/api/pulse', async (req, res) => {
   }
 });
 
-// Single bucket detail — max_results 調高，避免落回 entries[0] 的 bug
+// Single bucket detail — 多策略查詢避免找不到
 app.get('/api/bucket/:id', async (req, res) => {
+  const name = req.query.name || '';
   try {
     await ensureConnected();
-    const result = await mcpClient.callTool({
+
+    // 策略1: 用名稱查（語意最準）
+    if (name && name !== req.params.id) {
+      const r1 = await mcpClient.callTool({
+        name: 'breath',
+        arguments: { query: name, max_results: 30, max_tokens: 8000 }
+      });
+      const e1 = parseEntries(r1);
+      const m1 = e1.find(e => e.id === req.params.id);
+      if (m1) return res.json(m1);
+    }
+
+    // 策略2: 用 bucket_id 字串查
+    const r2 = await mcpClient.callTool({
       name: 'breath',
-      arguments: { query: req.params.id, max_results: 30, max_tokens: 8000 }
+      arguments: { query: req.params.id, max_results: 50, max_tokens: 10000 }
     });
-    const entries = parseEntries(result);
-    const match = entries.find(e => e.id === req.params.id);
-    if (match) return res.json(match);
-    res.json({ content: '（找不到這筆記憶的內容）' });
+    const e2 = parseEntries(r2);
+    const m2 = e2.find(e => e.id === req.params.id);
+    if (m2) return res.json(m2);
+
+    // 策略3: 抓全部再比對
+    const r3 = await mcpClient.callTool({
+      name: 'breath',
+      arguments: { max_results: 50, max_tokens: 15000 }
+    });
+    const e3 = parseEntries(r3);
+    const m3 = e3.find(e => e.id === req.params.id);
+    if (m3) return res.json(m3);
+
+    res.json({ content: '（這筆記憶無法讀取，可能是感受記憶或已歸檔）' });
   } catch (err) {
     console.error('Bucket error:', err.message);
     mcpClient = null;
@@ -202,13 +226,13 @@ app.get('/api/bucket/:id', async (req, res) => {
   }
 });
 
-// 刪除（沉底）bucket
+// 刪除 bucket（真刪除）
 app.delete('/api/bucket/:id', async (req, res) => {
   try {
     await ensureConnected();
     await mcpClient.callTool({
       name: 'trace',
-      arguments: { id: req.params.id, resolved: 1 }
+      arguments: { bucket_id: req.params.id, delete: true }
     });
     cache = {};
     res.json({ ok: true });
@@ -227,9 +251,9 @@ app.put('/api/bucket/:id', async (req, res) => {
     await ensureConnected();
     await mcpClient.callTool({
       name: 'trace',
-      arguments: { id: req.params.id, content: content }
+      arguments: { bucket_id: req.params.id, content: content }
     });
-    cache = {}; // invalidate all cache
+    cache = {};
     res.json({ ok: true });
   } catch (err) {
     console.error('Edit error:', err.message);
