@@ -616,6 +616,134 @@
       padding: 0.8rem 0 0.4rem;
       letter-spacing: 0.05em;
     }
+
+    /* Edit button */
+    .edit-btn {
+      position: absolute;
+      top: 0.7rem;
+      right: 0.7rem;
+      background: none;
+      border: 1px solid var(--border-sea);
+      border-radius: 6px;
+      color: var(--text-faded);
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s;
+      font-family: 'Zen Maru Gothic', sans-serif;
+    }
+
+    .entry-card:hover .edit-btn { opacity: 1; }
+    .edit-btn:hover { border-color: var(--accent-tide); color: var(--accent-tide); background: rgba(122,200,184,0.08); }
+
+    /* Edit modal */
+    .edit-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20,40,50,0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .edit-modal {
+      background: var(--bg-shallow);
+      border: 1px solid var(--border-sea);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 480px;
+      padding: 1.6rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      animation: slideUp 0.25s ease;
+    }
+
+    @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .edit-modal-title {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      font-size: 0.9rem;
+      color: var(--accent-ochre);
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.1em;
+    }
+
+    .edit-modal-date {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 0.7rem;
+      color: var(--text-faded);
+      margin-bottom: 1rem;
+    }
+
+    .edit-textarea {
+      width: 100%;
+      min-height: 180px;
+      background: rgba(43,79,90,0.8);
+      border: 1px solid var(--border-sea);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      color: var(--text-cream);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .edit-textarea:focus { border-color: var(--accent-tide); }
+
+    .edit-modal-actions {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border-sea);
+      border-radius: 20px;
+      padding: 0.45rem 1.1rem;
+      color: var(--text-faded);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover { border-color: var(--text-mid); color: var(--text-mid); }
+
+    .btn-save {
+      background: rgba(122,200,184,0.15);
+      border: 1px solid var(--accent-tide);
+      border-radius: 20px;
+      padding: 0.45rem 1.3rem;
+      color: var(--accent-tide);
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-save:hover { background: rgba(122,200,184,0.25); }
+    .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .edit-status {
+      font-size: 0.7rem;
+      color: var(--accent-tide);
+      margin-right: auto;
+      align-self: center;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -769,6 +897,20 @@
   </div>
 
   <div class="bottom-fade"></div>
+
+  <!-- Edit Modal -->
+  <div class="edit-overlay" id="editOverlay" style="display:none;" onclick="handleOverlayClick(event)">
+    <div class="edit-modal">
+      <div class="edit-modal-title" id="editModalTitle"></div>
+      <div class="edit-modal-date" id="editModalDate"></div>
+      <textarea class="edit-textarea" id="editTextarea" placeholder="在這裡編輯內容⋯⋯"></textarea>
+      <div class="edit-modal-actions">
+        <span class="edit-status" id="editStatus"></span>
+        <button class="btn-cancel" onclick="closeEdit()">取消</button>
+        <button class="btn-save" id="editSaveBtn" onclick="saveEdit()">儲存</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     var allEntries = [];
@@ -941,10 +1083,12 @@
           else borderColor = 'var(--accent-tide)';
         }
 
+        var rawContent = (e.summary || e.content || '').replace(/<br>/g, '\n');
         html += '<div class="entry-card" style="border-left-color:' + borderColor + ';">';
+        html += '<button class="edit-btn" onclick="openEdit(\'' + e.id + '\',\'' + (e.title||'無題').replace(/'/g,"\\'") + '\',\'' + (e.date||'') + '\',this)" title="編輯">✎ 編輯</button>';
         if (e.date) html += '<div class="entry-date">' + e.date + '</div>';
         html += '<div class="entry-title"><span class="entry-emotion-mark" style="color:' + ec + ';background:' + ec + '"></span>' + (e.title || '無題') + '</div>';
-        if (ct) html += '<div class="entry-content">' + ct + '</div>';
+        if (ct) html += '<div class="entry-content" id="ec-' + e.id + '">' + ct + '</div>';
         if (e.tags) {
           html += '<div class="entry-tags">';
           var tagsToShow = e.tags.slice(0, 6);
@@ -984,6 +1128,78 @@
     document.getElementById('searchInput').addEventListener('input', function(e) {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(function() { searchEntries(e.target.value); }, 500);
+    });
+
+    var editCurrentId = null;
+    var editContentEl = null;
+
+    function openEdit(id, title, date, btn) {
+      editCurrentId = id;
+      // Get current raw content from the DOM element
+      var contentEl = document.getElementById('ec-' + id);
+      var currentText = contentEl ? contentEl.innerHTML.replace(/<br>/g, '\n') : '';
+      // Also try to find raw content from allEntries
+      var entry = allEntries.find(function(e) { return e.id === id; });
+      if (entry) currentText = entry.summary || entry.content || '';
+
+      document.getElementById('editModalTitle').textContent = title;
+      document.getElementById('editModalDate').textContent = date || '';
+      document.getElementById('editTextarea').value = currentText;
+      document.getElementById('editStatus').textContent = '';
+      document.getElementById('editSaveBtn').disabled = false;
+      document.getElementById('editOverlay').style.display = 'flex';
+      setTimeout(function() { document.getElementById('editTextarea').focus(); }, 100);
+    }
+
+    function closeEdit() {
+      document.getElementById('editOverlay').style.display = 'none';
+      editCurrentId = null;
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('editOverlay')) closeEdit();
+    }
+
+    function saveEdit() {
+      if (!editCurrentId) return;
+      var newContent = document.getElementById('editTextarea').value.trim();
+      if (!newContent) return;
+
+      var saveBtn = document.getElementById('editSaveBtn');
+      var statusEl = document.getElementById('editStatus');
+      saveBtn.disabled = true;
+      statusEl.textContent = '儲存中⋯⋯';
+
+      fetch('/api/bucket/' + editCurrentId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent })
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function() {
+        statusEl.textContent = '✓ 已儲存';
+        // Update in-memory entry
+        var entry = allEntries.find(function(e) { return e.id === editCurrentId; });
+        if (entry) {
+          entry.content = newContent;
+          entry.summary = '';
+        }
+        // Update DOM
+        var contentEl = document.getElementById('ec-' + editCurrentId);
+        if (contentEl) contentEl.innerHTML = newContent.replace(/\n/g, '<br>');
+        setTimeout(function() { closeEdit(); }, 800);
+      })
+      .catch(function(err) {
+        statusEl.textContent = '儲存失敗：' + err.message;
+        saveBtn.disabled = false;
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeEdit();
     });
 
     init();
